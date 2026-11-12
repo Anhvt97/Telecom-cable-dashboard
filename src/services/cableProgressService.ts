@@ -154,6 +154,50 @@ export async function deleteCableTask(id: string): Promise<void> {
   }
 }
 
+export async function syncFromGoogleSheets(tasks: ConstructionTask[]): Promise<ConstructionTask[]> {
+  if (tasks.length === 0) {
+    throw new Error('Không có dữ liệu từ Google Sheets để đồng bộ.');
+  }
+
+  // 1. Delete old rows
+  const { error: deleteError } = await supabase
+    .from('cable_progress')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+
+  if (deleteError) {
+    throw new Error(`Lỗi xóa dữ liệu cũ khi đồng bộ: ${deleteError.message}`);
+  }
+
+  // 2. Insert new rows parsed from Google Sheets
+  const rowsToInsert = tasks.map((t) => ({
+    stt: t.stt,
+    task_name: t.hangMuc,
+    route_segment: t.tuyenDoan,
+    design_volume: t.khoiLuongThietKe,
+    actual_volume: t.khoiLuongThucTe,
+    plan_start: t.batDauKeHoach || null,
+    plan_end: t.ketThucKeHoach || null,
+    actual_start: t.batDauThucTe || null,
+    status: t.trangThaiRaw || 'Chưa bắt đầu',
+    team_in_charge: t.phuTrach,
+    blockers: t.vanDeTonDong || null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { data, error: insertError } = await supabase
+    .from('cable_progress')
+    .insert(rowsToInsert)
+    .select('*')
+    .order('stt', { ascending: true });
+
+  if (insertError) {
+    throw new Error(`Lỗi chèn dữ liệu mới từ Google Sheets: ${insertError.message}`);
+  }
+
+  return ((data as CableProgressRow[] | null) ?? []).map(mapRowToTask);
+}
+
 export function subscribeCableProgress(onChange: () => void): () => void {
   const channel = supabase
     .channel('cable_progress_realtime')

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Cable,
   CalendarClock,
+  DownloadCloud,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -32,13 +33,14 @@ import {
   deleteCableTask,
   fetchCableProgress,
   subscribeCableProgress,
+  syncFromGoogleSheets,
   updateCableTaskAdmin,
   updateCableTaskUser,
   type CableProgressPayload,
   type UserEditablePayload,
 } from './services/cableProgressService';
 import type { ConstructionTask, StatusCategory } from './types/construction';
-import { computeKpiSummary, formatDateVN } from './utils/csvParser';
+import { computeKpiSummary, fetchConstructionData, formatDateVN } from './utils/csvParser';
 
 function TelecomDashboard() {
   const { profile, user, signOut } = useAuth();
@@ -50,6 +52,7 @@ function TelecomDashboard() {
   const [tasks, setTasks] = useState<ConstructionTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isSyncingSheets, setIsSyncingSheets] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
@@ -154,6 +157,28 @@ function TelecomDashboard() {
     if (tasks.length === 0) return 1;
     return Math.max(...tasks.map((t) => t.stt)) + 1;
   }, [tasks]);
+
+  const handleSyncFromSheets = async () => {
+    setIsSyncingSheets(true);
+    setErrorMessage(null);
+
+    try {
+      // 1. Fetch live CSV from Google Sheets with cache-busting
+      const parsedFromSheets = await fetchConstructionData(true);
+      // 2. Sync into Supabase table
+      const synced = await syncFromGoogleSheets(parsedFromSheets);
+      setTasks(synced);
+      setLastSyncedAt(new Date());
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : 'Không thể đồng bộ dữ liệu từ Google Sheets.'
+      );
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
 
   const handleToggleBottlenecks = () => {
     setStatusFilter((prev) => (prev === 'BLOCKED' ? 'ALL' : 'BLOCKED'));
@@ -345,14 +370,31 @@ function TelecomDashboard() {
             )}
 
             {userRole === 'admin' && activeTab === 'dashboard' && (
-              <button
-                type="button"
-                onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shadow-blue-600/20 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Thêm đầu việc</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleSyncFromSheets()}
+                  disabled={isLoading || isSyncingSheets}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-semibold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+                  title="Kéo dữ liệu mới nhất từ Google Sheets cập nhật vào Supabase"
+                >
+                  <DownloadCloud
+                    className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-bounce' : ''}`}
+                  />
+                  <span>
+                    {isSyncingSheets ? 'Đang đồng bộ...' : 'Đồng bộ từ Google Sheets'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreate}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shadow-blue-600/20 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Thêm đầu việc</span>
+                </button>
+              </>
             )}
 
             <button
