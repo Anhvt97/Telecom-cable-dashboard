@@ -5,11 +5,15 @@ import {
   ChevronDown,
   Eye,
   Filter,
+  Pencil,
+  Plus,
   RotateCcw,
   Search,
   Table2,
+  Trash2,
   X,
 } from 'lucide-react';
+import type { UserRole } from '../types/auth';
 import type { ConstructionTask, StatusCategory } from '../types/construction';
 import {
   STATUS_META,
@@ -28,6 +32,22 @@ interface DataGridSectionProps {
   statusFilter: StatusCategory | 'ALL';
   onStatusFilterChange: (status: StatusCategory | 'ALL') => void;
   onSelectTask: (task: ConstructionTask) => void;
+  userRole: UserRole;
+  userTeamName: string;
+  onAddNew?: () => void;
+  onEditTask: (task: ConstructionTask) => void;
+  onDeleteTask?: (task: ConstructionTask) => void;
+}
+
+export function canUserEditTask(
+  task: ConstructionTask,
+  userRole: UserRole,
+  userTeamName: string
+): boolean {
+  if (userRole === 'admin') return true;
+  const normalizedTeam = userTeamName.trim().toLowerCase();
+  if (!normalizedTeam) return false;
+  return task.phuTrach.trim().toLowerCase() === normalizedTeam;
 }
 
 type SortField =
@@ -45,6 +65,11 @@ export function DataGridSection({
   statusFilter,
   onStatusFilterChange,
   onSelectTask,
+  userRole,
+  userTeamName,
+  onAddNew,
+  onEditTask,
+  onDeleteTask,
 }: DataGridSectionProps) {
   const [sortField, setSortField] = useState<SortField>('stt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -196,6 +221,17 @@ export function DataGridSection({
               Đặt lại
             </button>
           )}
+
+          {userRole === 'admin' && onAddNew && (
+            <button
+              type="button"
+              onClick={onAddNew}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-600/20 transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Thêm mới đầu việc
+            </button>
+          )}
         </div>
       </div>
 
@@ -285,8 +321,11 @@ export function DataGridSection({
                   <th className="py-3.5 px-3 min-w-[165px]">
                     Phụ trách / Đơn vị
                   </th>
-                  <th className="py-3.5 pl-3 pr-6 min-w-[200px]">
+                  <th className="py-3.5 px-3 min-w-[200px]">
                     Vấn đề tồn đọng
+                  </th>
+                  <th className="py-3.5 pl-3 pr-6 text-right whitespace-nowrap">
+                    Thao tác
                   </th>
                 </tr>
               </thead>
@@ -364,7 +403,7 @@ export function DataGridSection({
                       <td className="py-4 px-3 align-top text-xs text-slate-600 leading-relaxed">
                         {task.phuTrach || '—'}
                       </td>
-                      <td className="py-4 pl-3 pr-6 align-top">
+                      <td className="py-4 px-3 align-top">
                         <div className="flex items-start justify-between gap-2">
                           <p
                             className={`text-xs leading-relaxed line-clamp-2 ${
@@ -379,7 +418,46 @@ export function DataGridSection({
                             )}
                             {task.vanDeTonDong || '—'}
                           </p>
-                          <Eye className="w-4 h-4 text-slate-300 group-hover:text-blue-600 shrink-0 mt-0.5 transition-colors" />
+                        </div>
+                      </td>
+                      <td
+                        className="py-4 pl-3 pr-6 align-top text-right whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectTask(task)}
+                            title="Xem chi tiết"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {canUserEditTask(task, userRole, userTeamName) && (
+                            <button
+                              type="button"
+                              onClick={() => onEditTask(task)}
+                              title={
+                                userRole === 'admin'
+                                  ? 'Chỉnh sửa đầu việc'
+                                  : 'Cập nhật tiến độ đơn vị'
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/70 transition-colors cursor-pointer"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>{userRole === 'admin' ? 'Sửa' : 'Cập nhật'}</span>
+                            </button>
+                          )}
+                          {userRole === 'admin' && onDeleteTask && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteTask(task)}
+                              title="Xóa đầu việc"
+                              className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -469,6 +547,35 @@ export function DataGridSection({
                       }`}
                     >
                       {task.vanDeTonDong}
+                    </div>
+                  )}
+
+                  {(canUserEditTask(task, userRole, userTeamName) ||
+                    (userRole === 'admin' && onDeleteTask)) && (
+                    <div
+                      className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {canUserEditTask(task, userRole, userTeamName) && (
+                        <button
+                          type="button"
+                          onClick={() => onEditTask(task)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          {userRole === 'admin' ? 'Sửa' : 'Cập nhật'}
+                        </button>
+                      )}
+                      {userRole === 'admin' && onDeleteTask && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteTask(task)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 border border-red-200 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Xóa
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

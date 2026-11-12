@@ -4,6 +4,7 @@ import {
   Building2,
   Calendar,
   MapPin,
+  Pencil,
   Ruler,
   X,
 } from 'lucide-react';
@@ -13,10 +14,17 @@ import { ProgressBarCell, StatusBadge } from './StatusBadge';
 
 interface TaskDetailModalProps {
   task: ConstructionTask | null;
+  canEdit?: boolean;
+  onEdit?: (task: ConstructionTask) => void;
   onClose: () => void;
 }
 
-export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
+export function TaskDetailModal({
+  task,
+  canEdit = false,
+  onEdit,
+  onClose,
+}: TaskDetailModalProps) {
   useEffect(() => {
     if (!task) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -201,7 +209,20 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+          {canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onEdit(task);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Cập nhật / Sửa
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

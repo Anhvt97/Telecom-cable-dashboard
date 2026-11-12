@@ -86,11 +86,12 @@ export function FetchErrorCard({
         <AlertOctagon className="w-7 h-7" />
       </div>
       <h2 className="text-lg font-semibold text-slate-900 mb-2">
-        Không thể tải dữ liệu tiến độ từ Google Sheets
+        Không thể tải dữ liệu tiến độ từ Supabase
       </h2>
       <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-        Vui lòng kiểm tra kết nối mạng hoặc đảm bảo liên kết CSV đã được xuất bản
-        công khai trên Google Sheets.
+        Vui lòng kiểm tra kết nối mạng, biến môi trường Supabase hoặc chắc chắn
+        bảng <code className="text-xs font-mono">cable_progress</code> và các
+        chính sách RLS đã được khởi tạo.
       </p>
       <div className="mb-6 rounded-xl bg-red-50/70 border border-red-100 px-4 py-3 text-xs text-red-700 text-left break-words">
         <span className="font-semibold">Chi tiết lỗi: </span>
